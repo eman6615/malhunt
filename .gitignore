@@ -1,171 +1,506 @@
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*$py.class
+import os
+import hashlib
+from tkinter import Tk, Listbox, Button, messagebox, filedialog, END
+import subprocess
+import ctypes
 
-# C extensions
-*.so
+# Known malicious C2 IPs and filenames
+KNOWN_C2_IPS = [
+    "192.168.1.100",
+    "10.0.0.200"
+]
 
-# Distribution / packaging
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-share/python-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
+KNOWN_TROJAN_NAMES = [
+    "Emotet.exe", 
+    "Dridex.exe", 
+    "Zeus.exe", 
+    "RAT.exe", 
+    "Mirai.exe", 
+    "Agen.exe", 
+    "TrickBot.exe", 
+    "Sodinokibi.exe",
+    "LOVE-LETTER-FOR-YOU.TXT.vbs", 
+    "LOVELETTER.TXT.vbs", 
+    "win32love.vbs", 
+    "document.zip", 
+    "message.zip", 
+    "data.txt.exe",
+    "banking-security.exe", 
+    "authenticator.exe", 
+    "secure-login.exe", 
+    "server.exe", 
+    "sub7.exe", 
+    "patch.exe", 
+    "AnnaKournikova.jpg.vbs", 
+    "ILOVEYOU.exe", 
+    "report.pdf.exe", 
+    "AgentTesla.exe", 
+    "NanoCore.exe", 
+    "DarkComet.exe", 
+    "Quasar.exe", 
+    "Parite.exe", 
+    "NetBot.exe", 
+    "Gamarue.exe", 
+    "Glupteba.exe", 
+    "Kazy.exe", 
+    "Gh0st.exe", 
+    "Zbot.exe",
+    "Blackshades.exe", 
+    "Sasser.exe", 
+    "Slammer.exe", 
+    "Sasser.B.exe", 
+    "Bagle.exe", 
+    "MyDoom.exe", 
+    "W32.Sasser.Worm.exe", 
+    "Conficker.exe", 
+    "CryptoLocker.exe", 
+    "Locky.exe", 
+    "Cerber.exe", 
+    "Ryuk.exe", 
+    "WannaCry.exe", 
+    "Petya.exe", 
+    "BadRabbit.exe", 
+    "Crysis.exe", 
+    "GlobeImposter.exe", 
+    "Jigsaw.exe", 
+    "TeslaCrypt.exe", 
+    "Ransomware.xyz", 
+    "Cerber.ransomware.exe",
+    "Locky.ransomware.exe", 
+    "Cryptowall.exe", 
+    "BitPaymer.exe", 
+    "Maze.exe", 
+    "HERMES.exe", 
+    "REvil.exe", 
+    "XData.exe",
+    "Spora.exe", 
+    "Zcryptor.exe", 
+    "Ryuk_ransomware.exe", 
+    "WannaCryptor.exe", 
+    "ZCryptor.exe", 
+    "CryptXXX.exe", 
+    "Zepto.exe", 
+    "Cry128.exe", 
+    "GandCrab.exe", 
+    "RagnarLocker.exe", 
+    "Sodinokibi_ransomware.exe", 
+    "EternalBlue.exe", 
+    "Shylock.exe", 
+    "Poweliks.exe", 
+    "Razy.exe", 
+    "Phantom.exe", 
+    "Mamba.exe", 
+    "BADBLOCK.exe", 
+    "Ranion.exe", 
+    "Phobos.exe", 
+    "Hades.exe",
+    "Buran.exe", 
+    "Pony.exe", 
+    "Dharma.exe", 
+    "Hercules.exe", 
+    "LockBit.exe", 
+    "RansomEXX.exe", 
+    "Stuxnet.exe", 
+    "CryptBase.exe",
+    "Clop.exe", 
+    "CobaltStrike.exe", 
+    "Hapoy.exe", 
+    "KeRanger.exe", 
+    "Freelancer.exe", 
+    "Breach.exe", 
+    "Tox4.exe", 
+    "LokiBot.exe", 
+    "RigEK.exe", 
+    "Jaff.exe", 
+    "RedBoot.exe", 
+    "Hybris.exe", 
+    "DarkSide.exe", 
+    "HelloKitty.exe", 
+    "WhiteRabbit.exe", 
+    "CrySan.exe",
+    "Thanos.exe", 
+    "Crysis2.exe", 
+    "GandCrab.v2.exe", 
+    "WannaCry.2.exe", 
+    "Kovter.exe", 
+    "MedeAnalytics.exe", 
+    "PythonRAT.exe",
+    "NjRAT.exe", 
+    "Remcos.exe", 
+    "Echobot.exe", 
+    "Houdini.exe", 
+    "StealthBot.exe", 
+    "RATsaver.exe", 
+    "FBI Ransomware.exe",
+    "ViraBot.exe", 
+    "Svr.exe", 
+    "RedBelt.exe", 
+    "Xbot.exe", 
+    "Toy.exe", 
+    "Loki.exe", 
+    "SazBot.exe", 
+    "Smokeloader.exe", 
+    "MiraiDDoS.exe", 
+    "Godzilla.exe", 
+    "NerfBot.exe", 
+    "Xforce.exe", 
+    "RatsX.exe", 
+    "RATstorm.exe", 
+    "Blackhole.exe", 
+    "Exploit.exe",
+    "Exile.exe", 
+    "Phoenix.exe", 
+    "BlackCat.exe", 
+    "PlexBot.exe", 
+    "Cryptopay.exe", 
+    "HideExec.exe", 
+    "Vampyr.exe", 
+    "MaxRAT.exe",
+    "RemcosRAT.exe", 
+    "EmberRAT.exe", 
+    "Spybot.exe", 
+    "Anubis.exe", 
+    "Mackeeper.exe", 
+    "Lokibot.exe", 
+    "DDoS.exe", 
+    "TcpX.exe",
+    "LazyRAT.exe", 
+    "Lethos.exe", 
+    "HorseRAT.exe", 
+    "Hattrick.exe", 
+    "TrickBotII.exe", 
+    "Xwph3.exe", 
+    "Thor.exe", 
+    "SpyLine.exe",
+    "SwatBot.exe", 
+    "TitanRAT.exe", 
+    "ZeptoRAT.exe", 
+    "ZmOrion.exe", 
+    "GlobalPhantom.exe", 
+    "MysticRAT.exe", 
+    "Zafar.exe",
+    "Lazarus.exe", 
+    "CandidRAT.exe", 
+    "PornoSpy.exe", 
+    "Xplode.exe", 
+    "SpyMaster.exe", 
+    "StealthSurfer.exe", 
+    "Pandora.exe",
+    "FantomRAT.exe", 
+    "Viper.exe", 
+    "ShellBot.exe", 
+    "GandRAT.exe", 
+    "Minesweeper.exe", 
+    "ATilla.exe", 
+    "IllusionRAT.exe",
+    "Pantech.exe", 
+    "ZogRAT.exe", 
+    "Pestilence.exe", 
+    "TrojanLite.exe", 
+    "TrojanHunter.exe", 
+    "SolarBot.exe", 
+    "PhantomB.exe", 
+    "VegaBot.exe", 
+    "SpyLift.exe", 
+    "SpeedBot.exe", 
+    "Payload.exe", 
+    "Ravager.exe", 
+    "SpyHoax.exe", 
+    "WinSpider.exe", 
+    "Vixen.exe",
+    "Stunt.exe", 
+    "StealthBoss.exe", 
+    "SnakeBot.exe", 
+    "TrackBot.exe", 
+    "VeraBot.exe", 
+    "MasterSpy.exe", 
+    "OmegaRAT.exe",
+    "TronBot.exe", 
+    "SharkBot.exe", 
+    "Cobra.exe", 
+    "IntruderBot.exe", 
+    "Warlock.exe", 
+    "TornadoBot.exe", 
+    "TwisterBot.exe",
+    "ThunderBot.exe", 
+    "StealthDaemon.exe", 
+    "MadBot.exe", 
+    "SniperBot.exe", 
+    "ZazaRAT.exe", 
+    "DarkVenom.exe", 
+    "ShadeRAT.exe",
+    "MaxBot.exe", 
+    "HackerRAT.exe", 
+    "Reseed.exe", 
+    "BlackStorm.exe", 
+    "Medusa.exe", 
+    "NecroBot.exe", 
+    "Nightfall.exe",
+    "PetrRat.exe", 
+    "VampBot.exe", 
+    "BlunderRAT.exe", 
+    "ShadowRAT.exe", 
+    "PhantomCloud.exe", 
+    "DragonBot.exe", 
+    "StealthPulse.exe",
+    "MystRAT.exe", 
+    "Sparrow.exe", 
+    "WhisperRAT.exe", 
+    "Malachite.exe", 
+    "GuardianBot.exe", 
+    "Infiltrator.exe", 
+    "Shiv.exe",
+    "Proton.exe", 
+    "Apocalypse.exe", 
+    "Voltron.exe", 
+    "Atlas.exe", 
+    "Venus.exe", 
+    "PhantomKing.exe", 
+    "Wraith.exe", 
+    "Arachne.exe",
+    "Pandemic.exe", 
+    "StrikeBot.exe", 
+    "BlackCobra.exe", 
+    "VoidBot.exe", 
+    "Trident.exe", 
+    "Hacker.exe", 
+    "Spectre.exe", 
+    "Venom.exe"
+]
 
-# PyInstaller
-#  Usually these files are written by a python script from a template
-#  before PyInstaller builds the exe, so as to inject date/other infos into it.
-*.manifest
-*.spec
+SUSPICIOUS_HASHES = [
+    "e4d909c290d0fb1ca068ffaddf22cbd0",
+    "f0e4b64d790af118f9f2d7acb9f2879e"
+]
 
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
+def hash_file(filepath):
+    """Generate an MD5 hash for a file."""
+    hasher = hashlib.md5()
+    try:
+        with open(filepath, 'rb') as f:
+            buf = f.read()
+            hasher.update(buf)
+        return hasher.hexdigest()
+    except Exception as e:
+        print(f"Error hashing file: {e}")
+        return None
 
-# Unit test / coverage reports
-htmlcov/
-.tox/
-.nox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.py,cover
-.hypothesis/
-.pytest_cache/
-cover/
+def detect_suspicious_connections():
+    """Detect active connections to known malicious IPs."""
+    suspicious_connections = []
+    try:
+        output = subprocess.check_output("netstat -n", shell=True).decode()
+        lines = output.splitlines()
+        for line in lines:
+            parts = line.split()
+            if len(parts) >= 3 and parts[2] in KNOWN_C2_IPS:
+                suspicious_connections.append(line)
+    except Exception as e:
+        print(f"Error detecting connections: {e}")
+    return suspicious_connections
 
-# Translations
-*.mo
-*.pot
+def detect_suspicious_files(directory):
+    """Scan files in the given directory for suspicious names or hashes."""
+    suspicious_files = []
+    for root, _, files in os.walk(directory):
+        for file in files:
+            filepath = os.path.join(root, file)
+            file_hash = hash_file(filepath)
+            if file.lower() in [name.lower() for name in KNOWN_TROJAN_NAMES] or file_hash in SUSPICIOUS_HASHES:
+                suspicious_files.append(filepath)
+    return suspicious_files
 
-# Django stuff:
-*.log
-local_settings.py
-db.sqlite3
-db.sqlite3-journal
+def detect_suspicious_processes():
+    """Detect processes with suspicious names."""
+    suspicious_processes = []
+    try:
+        output = subprocess.check_output("tasklist", shell=True).decode()
+        lines = output.splitlines()
+        for line in lines:
+            for trojan in KNOWN_TROJAN_NAMES:
+                if trojan.lower() in line.lower():
+                    suspicious_processes.append(line.strip())
+    except Exception as e:
+        print(f"Error detecting processes: {e}")
+    return suspicious_processes
 
-# Flask stuff:
-instance/
-.webassets-cache
+def block_ip(ip):
+    """Block an IP address using the Windows firewall."""
+    try:
+        subprocess.check_output(f'netsh advfirewall firewall add rule name="Block {ip}" dir=out action=block remoteip={ip}', shell=True)
+        messagebox.showinfo("Firewall", f"Blocked IP: {ip}")
+    except Exception as e:
+        print(f"Error blocking IP: {e}")
+        messagebox.showerror("Firewall Error", "Failed to block the IP address.")
 
-# Scrapy stuff:
-.scrapy
+def toggle_firewall(state):
+    """Toggle Windows firewall state with admin privileges."""
+    try:
+        if state == 'on':
+            # Run as Administrator to turn on firewall
+            subprocess.check_output('netsh advfirewall set allprofiles state on', shell=True)
+            return 'off'  # The next toggle will turn it off
+        else:
+            # Run as Administrator to turn off firewall
+            subprocess.check_output('netsh advfirewall set allprofiles state off', shell=True)
+            return 'on'  # The next toggle will turn it on
+    except subprocess.CalledProcessError as e:
+        print(f"Error toggling firewall: {e}")
+        messagebox.showerror("Firewall Error", "Failed to toggle the firewall. Ensure the script has admin privileges.")
+        return state
 
-# Sphinx documentation
-docs/_build/
+# Define system scan function
+def scan_system():
+    """Perform a complete system scan."""
+    threat_list.delete(0, END)  # Clear the listbox before starting a new scan
 
-# PyBuilder
-.pybuilder/
-target/
+    # Detect suspicious network connections
+    connections = detect_suspicious_connections()
+    for conn in connections:
+        threat_list.insert(END, f"Connection: {conn}")
 
-# Jupyter Notebook
-.ipynb_checkpoints
+    # Detect suspicious processes
+    processes = detect_suspicious_processes()
+    for proc in processes:
+        threat_list.insert(END, f"Process: {proc}")
 
-# IPython
-profile_default/
-ipython_config.py
+    # Scan for suspicious files
+    directory = filedialog.askdirectory(title="Select Directory to Scan")
+    if directory:
+        files = detect_suspicious_files(directory)
+        for file in files:
+            threat_list.insert(END, f"File: {file}")
 
-# pyenv
-#   For a library or package, you might want to ignore these files since the code is
-#   intended to run in multiple environments; otherwise, check them in:
-# .python-version
+    if not (connections or processes or files):
+        messagebox.showinfo("Scan Complete", "No suspicious activities detected.")
 
-# pipenv
-#   According to pypa/pipenv#598, it is recommended to include Pipfile.lock in version control.
-#   However, in case of collaboration, if having platform-specific dependencies or dependencies
-#   having no cross-platform support, pipenv may install dependencies that don't work, or not
-#   install all needed dependencies.
-#Pipfile.lock
+# Define file deletion function
+def delete_selected():
+    """Delete the selected suspicious item."""
+    selected = threat_list.curselection()
+    if not selected:
+        messagebox.showwarning("No Selection", "Please select an item to delete.")
+        return
 
-# UV
-#   Similar to Pipfile.lock, it is generally recommended to include uv.lock in version control.
-#   This is especially recommended for binary packages to ensure reproducibility, and is more
-#   commonly ignored for libraries.
-#uv.lock
+    item = threat_list.get(selected)
 
-# poetry
-#   Similar to Pipfile.lock, it is generally recommended to include poetry.lock in version control.
-#   This is especially recommended for binary packages to ensure reproducibility, and is more
-#   commonly ignored for libraries.
-#   https://python-poetry.org/docs/basic-usage/#commit-your-poetrylock-file-to-version-control
-#poetry.lock
+    if item.startswith("File:"):
+        filepath = item[6:]  # Remove the "File: " prefix
+        try:
+            os.remove(filepath)
+            threat_list.delete(selected)
+            messagebox.showinfo("File killed", f"Killed: {filepath}")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to delete file: {e}")
+    elif item.startswith("Process:"):
+        messagebox.showinfo("Process Termination", "Terminate processes manually via Task Manager.")
+    elif item.startswith("Connection:"):
+        messagebox.showinfo("Connection Deletion", "Manage network connections manually.")
 
-# pdm
-#   Similar to Pipfile.lock, it is generally recommended to include pdm.lock in version control.
-#pdm.lock
-#   pdm stores project-wide configurations in .pdm.toml, but it is recommended to not include it
-#   in version control.
-#   https://pdm.fming.dev/latest/usage/project/#working-with-version-control
-.pdm.toml
-.pdm-python
-.pdm-build/
+# Define close function
+def close_app():
+    """Close the application."""
+    root.quit()
 
-# PEP 582; used by e.g. github.com/David-OConnor/pyflow and github.com/pdm-project/pdm
-__pypackages__/
+# GUI setup
+root = Tk()
+root.title("MalHunt")
+root.geometry("500x450")
+root.configure(bg="#013220")
 
-# Celery stuff
-celerybeat-schedule
-celerybeat.pid
+# Threat Listbox
+threat_list = Listbox(root, bg="black", fg="red", width=70, height=15, selectbackground="deep sky blue", selectforeground="white")
+threat_list.pack(pady=10)
 
-# SageMath parsed files
-*.sage.py
+# Buttons with cool text and effects
+scan_button = Button(root, text="Hunt Malware", command=scan_system, bg="blue", fg="white", font=('Arial', 12, 'bold'), activebackground="dark blue", activeforeground="white")
+scan_button.pack(pady=5)
 
-# Environments
-.env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
+delete_button = Button(root, text="kill Selected ", command=delete_selected, bg="blue", fg="white", font=('Arial', 12, 'bold'), activebackground="dark blue", activeforeground="white")
+delete_button.pack(pady=5)
 
-# Spyder project settings
-.spyderproject
-.spyproject
+# Firewall toggle button
+firewall_state = 'on'  # Initial state is on
+def toggle_button_action():
+    global firewall_state
+    firewall_state = toggle_firewall(firewall_state)
+    firewall_button.config(text=f"Turn Firewall {'Off' if firewall_state == 'on' else 'On'} ⚙️")
 
-# Rope project settings
-.ropeproject
+firewall_button = Button(root, text=" Turn Firewall Off ", command=toggle_button_action, bg="green", fg="white", font=('Arial', 12, 'bold'), activebackground="dark green", activeforeground="white")
+firewall_button.pack(pady=5)
 
-# mkdocs documentation
-/site
+# Close button
+close_button = Button(root, text="kill window", command=close_app, bg="red", fg="white", font=('Arial', 12, 'bold'), activebackground="dark red", activeforeground="white")
+close_button.pack(pady=10)
 
-# mypy
-.mypy_cache/
-.dmypy.json
-dmypy.json
+from tkinter import Toplevel, Label, OptionMenu, StringVar, Button, filedialog, messagebox
 
-# Pyre type checker
-.pyre/
+# Global variable to store current theme and settings
+current_theme = "Light"
+default_directory = ""
+log_file = "malhunt_log.txt"
 
-# pytype static type analyzer
-.pytype/
 
-# Cython debug symbols
-cython_debug/
+def open_settings(root):
+    """Open the settings window to change the theme and settings."""
+    settings_window = Toplevel(root)
+    settings_window.title("Settings")
+    settings_window.geometry("300x300")
 
-# PyCharm
-#  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
-#  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
-#  and can be added to the global gitignore or merged into this file.  For a more nuclear
-#  option (not recommended) you can uncomment the following to ignore the entire idea folder.
-#.idea/
+    # Theme selection
+    theme_label = Label(settings_window, text="Choose Theme:")
+    theme_label.pack(pady=10)
 
-# PyPI configuration file
-.pypirc
+    theme_options = ["Light", "Dark"]
+    theme_var = StringVar(value=current_theme)
+    theme_menu = OptionMenu(settings_window, theme_var, *theme_options)
+    theme_menu.pack(pady=10)
+
+    # Default directory selection
+    def select_directory(directory_label=40):
+        directory = filedialog.askdirectory(title="Select Default Directory")
+        if directory:
+            global default_directory
+            default_directory = directory
+            directory_label.config(text=f"Directory: {default_directory}")
+
+    directory_button = Button(settings_window, text="Select Default Scan Directory", command=select_directory,
+                              bg="blue", fg="white", font=('Arial', 10))
+    directory_button.pack(pady=10)
+
+    # Log file selection
+    def select_log_file(log_label=(log_file)):
+        file = filedialog.asksaveasfilename(defaultextension=".txt", filetypes=[("Text Files", "*.txt")],
+                                            title="Save Log File")
+        if file:
+            global log_file
+            log_file = file
+            log_label.config(text=f"Log File: {log_file}")
+
+    log_button = Button(settings_window, text="Select Log File", command=select_log_file, bg="blue", fg="white",
+                        font=('Arial', 10))
+    log_button.pack(pady=10)
+
+    # Save button
+    def save_settings():
+        global current_theme
+        current_theme = theme_var.get()
+        apply_theme(root)
+        messagebox.showinfo("Settings Saved", f"Settings have been saved.\nTheme: {current_theme}")
+        settings_window.destroy()
+
+    save_button = Button(settings_window, text="Save", command=save_settings, bg="green", fg="white",
+                         font=('Arial', 12, 'bold'))
+    save_button.pack(pady=10)
+
+
+# Apply the theme
+def apply_theme(root):
+    if current_theme == "Dark":
+        root.configure(bg="#2C2C2C")
+    else:
+        root.configure(bg="#013220")
+
+root.mainloop()
+
+
